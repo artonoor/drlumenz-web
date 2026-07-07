@@ -400,6 +400,12 @@ function loop(ts = 0) {
     spawnObstacle();
   }
 
+  // Cannonballs — start at 20s, fire every ~4s at random heights
+  if (frame > 1200 && frame % 240 === 0) {
+    const y = 60 + Math.random() * (H - 120);
+    towerShots.push({ x: W + 10, y, vx: -5 - Math.random() * 2, r: 8 });
+  }
+
   // Tower zone
   const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
   const towerX = W * 0.7;
