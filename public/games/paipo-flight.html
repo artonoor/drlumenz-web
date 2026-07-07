@@ -237,12 +237,19 @@ function drawPaipo(x, y, slow) {
   ctx.beginPath(); ctx.arc(x + 21, y - 8, 3.5, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#111';
   ctx.beginPath(); ctx.arc(x + 22, y - 8, 2, 0, Math.PI*2); ctx.fill();
-  // Beak
+  // Beak — opens and closes like singing
+  const beakOpen = Math.max(0, Math.sin(paipo.wingAngle * 0.7) * 4);
   ctx.fillStyle = '#f5c842';
-  ctx.beginPath();
-  ctx.moveTo(x + 27, y - 6);
-  ctx.lineTo(x + 38, y - 4);
-  ctx.lineTo(x + 27, y - 2);
+  ctx.beginPath(); // upper beak
+  ctx.moveTo(x + 27, y - 7);
+  ctx.lineTo(x + 40, y - 5 - beakOpen * 0.4);
+  ctx.lineTo(x + 27, y - 4 - beakOpen * 0.3);
+  ctx.fill();
+  ctx.fillStyle = '#d4a012';
+  ctx.beginPath(); // lower beak
+  ctx.moveTo(x + 27, y - 4 + beakOpen * 0.3);
+  ctx.lineTo(x + 38, y - 3 + beakOpen * 0.6);
+  ctx.lineTo(x + 27, y - 1);
   ctx.fill();
 
   // Slow glow
