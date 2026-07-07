@@ -174,38 +174,53 @@ function spawnParticle(x, y, color) {
 }
 
 function drawPaipo(x, y, slow) {
-  const wf = Math.sin(paipo.wingAngle) * 10;
+  // Wing flap — bigger amplitude when tapping (vy strongly negative)
+  const flapPower = paipo.vy < -2 ? 1.6 : 1.0;
+  const wf = Math.sin(paipo.wingAngle) * 26 * flapPower;
+
+  // Upper wing — large, sweeps high on flap
+  ctx.fillStyle = '#4db8ff';
+  ctx.beginPath();
+  ctx.moveTo(x - 14, y - 4);
+  ctx.quadraticCurveTo(x - 2, y - 38 - wf, x + 20, y - 10);
+  ctx.quadraticCurveTo(x + 4, y - 6, x - 14, y - 4);
+  ctx.fill();
+  // Upper wing shimmer
+  ctx.fillStyle = '#99ddff55';
+  ctx.beginPath();
+  ctx.moveTo(x - 8, y - 6);
+  ctx.quadraticCurveTo(x + 2, y - 28 - wf * 0.7, x + 16, y - 12);
+  ctx.quadraticCurveTo(x + 4, y - 8, x - 8, y - 6);
+  ctx.fill();
+
+  // Lower wing — sweeps down
+  ctx.fillStyle = '#1a66cc';
+  ctx.beginPath();
+  ctx.moveTo(x - 14, y + 6);
+  ctx.quadraticCurveTo(x, y + 32 + wf * 0.5, x + 22, y + 8);
+  ctx.quadraticCurveTo(x + 4, y + 5, x - 14, y + 6);
+  ctx.fill();
+
   // Tail
   ctx.fillStyle = paipo.tailColor;
   ctx.beginPath();
-  ctx.moveTo(x - 20, y);
-  ctx.lineTo(x - 40, y - 8 + wf*0.3);
-  ctx.lineTo(x - 36, y + 4);
+  ctx.moveTo(x - 18, y - 2);
+  ctx.lineTo(x - 44, y - 10 + wf * 0.2);
+  ctx.lineTo(x - 40, y + 6);
   ctx.fill();
+
   // Body
   ctx.fillStyle = paipo.bodyColor;
   ctx.beginPath();
   ctx.ellipse(x, y, 22, 13, -0.15, 0, Math.PI*2);
   ctx.fill();
-  // Wing top
-  ctx.fillStyle = '#3399ff';
-  ctx.beginPath();
-  ctx.moveTo(x - 10, y - 5);
-  ctx.quadraticCurveTo(x, y - 20 - wf, x + 18, y - 8);
-  ctx.quadraticCurveTo(x + 5, y - 5, x - 10, y - 5);
-  ctx.fill();
-  // Wing bottom
-  ctx.fillStyle = '#1166cc';
-  ctx.beginPath();
-  ctx.moveTo(x - 10, y + 4);
-  ctx.quadraticCurveTo(x + 4, y + 16 + wf*0.5, x + 20, y + 6);
-  ctx.quadraticCurveTo(x + 5, y + 4, x - 10, y + 4);
-  ctx.fill();
+
   // Red chest
   ctx.fillStyle = paipo.color;
   ctx.beginPath();
   ctx.ellipse(x + 6, y + 2, 12, 9, 0.2, 0, Math.PI*2);
   ctx.fill();
+
   // Head
   ctx.fillStyle = '#22aa44';
   ctx.beginPath();
@@ -220,15 +235,16 @@ function drawPaipo(x, y, slow) {
   ctx.fillStyle = '#f5c842';
   ctx.beginPath();
   ctx.moveTo(x + 27, y - 6);
-  ctx.lineTo(x + 36, y - 4);
+  ctx.lineTo(x + 38, y - 4);
   ctx.lineTo(x + 27, y - 2);
   ctx.fill();
+
   // Slow glow
   if (slow) {
     ctx.save();
     ctx.globalAlpha = 0.25;
     ctx.fillStyle = '#c9a84c';
-    ctx.beginPath(); ctx.arc(x, y, 32, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 36, 0, Math.PI*2); ctx.fill();
     ctx.restore();
   }
 }
