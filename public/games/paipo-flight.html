@@ -234,8 +234,8 @@ function drawPaipo(x, y, slow) {
 }
 
 function drawTower(x) {
-  const tTop = H * 0.05;
-  const tH = H * 0.9;
+  const tTop = H * 0.3;
+  const tH = H * 0.65;
   // Tower body
   ctx.fillStyle = '#1a2e3d';
   ctx.fillRect(x, tTop, 80, tH);
@@ -248,7 +248,7 @@ function drawTower(x) {
     ctx.fillRect(x + i * 18, tTop - 24, 12, 24);
   }
   // 6 cannon heads evenly spaced down the tower
-  const cannon_ys = [0.15, 0.27, 0.39, 0.51, 0.63, 0.75].map(p => H * p);
+  const cannon_ys = [0.33, 0.42, 0.51, 0.60, 0.69, 0.78].map(p => H * p);
   cannon_ys.forEach(cy => {
     // Cannon socket (circle on tower wall)
     ctx.fillStyle = '#0d1b24';
@@ -436,7 +436,7 @@ function loop(ts = 0) {
       }
     }
     // Tower fires 5 cannonballs at staggered intervals, spread vertically
-    const SHOT_HEIGHTS = [H*0.15, H*0.27, H*0.39, H*0.51, H*0.63, H*0.75];
+    const SHOT_HEIGHTS = [H*0.33, H*0.42, H*0.51, H*0.60, H*0.69, H*0.78];
     const shotInterval = 35; // frames between each shot
     if (towerWarningTimer > 60) {
       const shotsDue = Math.min(6, Math.floor((towerWarningTimer - 60) / shotInterval));
