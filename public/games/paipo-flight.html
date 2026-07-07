@@ -95,18 +95,26 @@ function startGame() {
 // Input
 let keys = {};
 document.addEventListener('keydown', e => {
-  keys[e.code] = true;
+  if (state !== 'playing') return;
+  if ((e.code === 'ArrowUp' || e.code === 'KeyW') && !keys[e.code]) {
+    paipo.vy = -4.5; // tap = flap burst
+  }
+  if (e.code === 'ArrowDown' || e.code === 'KeyS') paipo.vy += 2;
   if (e.code === 'Space') { e.preventDefault(); paipo.slow = true; }
+  keys[e.code] = true;
 });
 document.addEventListener('keyup', e => {
   keys[e.code] = false;
   if (e.code === 'Space') paipo.slow = false;
 });
-// Touch
+// Touch — tap anywhere to flap
+canvas.addEventListener('touchstart', e => {
+  if (state !== 'playing') return;
+  paipo.vy = -4.5;
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchend', () => {});
 let touchY = null;
-canvas.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; paipo.slow = true; });
-canvas.addEventListener('touchend', () => { touchY = null; paipo.slow = false; });
-canvas.addEventListener('touchmove', e => { touchY = e.touches[0].clientY; e.preventDefault(); }, { passive: false });
 
 function spawnObstacle() {
   const z = Math.floor(worldX / ZONE_LEN);
@@ -307,18 +315,7 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = frame < 1800 ? 0 : (paipo.slow ? 0.05 : 0.09);
-  const lift = paipo.slow ? -0.28 : -0.55;
-
-  if (keys['ArrowUp'] || keys['KeyW']) paipo.vy += lift;
-  if (keys['ArrowDown'] || keys['KeyS']) paipo.vy += 0.15;
-  if (touchY !== null) {
-    const canvasRect = canvas.getBoundingClientRect();
-    const ty = touchY - canvasRect.top;
-    if (ty < paipo.y) paipo.vy += lift;
-    else paipo.vy += 0.3;
-  }
-
+  const gravity = frame < 1800 ? 0 : (paipo.slow ? 0.06 : 0.14);
   paipo.vy += gravity;
   paipo.vy = Math.max(-9, Math.min(9, paipo.vy));
   paipo.y += paipo.vy;
@@ -332,8 +329,9 @@ function loop(ts = 0) {
   }
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
-  const spawnRate = Math.max(90, 180 - zone * 12);
-  if (frame > 1800 && frame % spawnRate === 0 && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
+  const spawnRate = Math.max(220, 320 - zone * 15);
+  const oneOnScreen = obstacles.filter(o => !o.passed).length < 1;
+  if (frame > 1800 && frame % spawnRate === 0 && oneOnScreen && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
 
   // Tower zone
   const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
