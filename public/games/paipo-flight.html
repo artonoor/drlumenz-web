@@ -113,7 +113,7 @@ function spawnObstacle() {
   const type = types[Math.min(z, types.length-1)];
   const labels = { noise: 'NOISE', doubt: 'DOUBT', fear: 'FEAR', comparison: 'COMPARE' };
   const colors = { noise: '#ff6b35', doubt: '#6b35ff', fear: '#35b5ff', comparison: '#ff35b5' };
-  const gap = Math.max(130, 180 - z*15);
+  const gap = Math.max(160, 220 - z*10);
   const cy = 80 + Math.random() * (H - 160);
   obstacles.push({
     x: W + 60,
@@ -306,11 +306,11 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = paipo.slow ? 0.12 : 0.28;
-  const lift = paipo.slow ? -0.22 : -0.5;
+  const gravity = paipo.slow ? 0.06 : 0.13;
+  const lift = paipo.slow ? -0.28 : -0.55;
 
   if (keys['ArrowUp'] || keys['KeyW']) paipo.vy += lift;
-  if (keys['ArrowDown'] || keys['KeyS']) paipo.vy += 0.3;
+  if (keys['ArrowDown'] || keys['KeyS']) paipo.vy += 0.15;
   if (touchY !== null) {
     const canvasRect = canvas.getBoundingClientRect();
     const ty = touchY - canvasRect.top;
@@ -327,7 +327,7 @@ function loop(ts = 0) {
   if (paipo.y > H - 20) { loseLife(); return; }
 
   // Spawn obstacles
-  const spawnRate = Math.max(60, 110 - zone * 10);
+  const spawnRate = Math.max(90, 180 - zone * 12);
   if (frame % spawnRate === 0 && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
 
   // Tower zone
