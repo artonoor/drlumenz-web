@@ -15,11 +15,22 @@
   #msg .hint { font-size: 0.8rem; color: #7a9aaa; margin-top: 16px; letter-spacing: 0.15em; text-transform: uppercase; }
   #startBtn { margin-top: 24px; background: #c9a84c; color: #0d1b24; border: none; padding: 12px 32px; border-radius: 50px; font-family: Georgia, serif; font-size: 1rem; cursor: pointer; letter-spacing: 0.1em; }
   #startBtn:hover { background: #e0c068; }
+  #pauseBtn { position: fixed; bottom: 20px; right: 20px; background: rgba(201,168,76,0.15); color: #c9a84c; border: 1px solid #c9a84c44; padding: 10px 20px; border-radius: 50px; font-family: Georgia, serif; font-size: 0.85rem; cursor: pointer; letter-spacing: 0.1em; z-index: 20; display: none; }
+  #pauseBtn:hover { background: rgba(201,168,76,0.3); }
+  #pauseOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; display: none; z-index: 15; }
+  #pauseOverlay h3 { font-size: 2rem; color: #c9a84c; margin-bottom: 12px; }
+  #pauseOverlay p { color: #7a9aaa; font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; }
 </style>
 </head>
 <body>
 
 <canvas id="canvas"></canvas>
+
+<button id="pauseBtn" onclick="togglePause()">⏸ Pause</button>
+<div id="pauseOverlay">
+  <h3>Paused</h3>
+  <p>Click or press P to resume</p>
+</div>
 
 <div id="ui">
   <span>Lives: <span id="lives">3</span></span>
@@ -88,6 +99,8 @@ function startGame() {
   secretFound = false; towerWarning = false; won = false;
   paipo.y = H/2; paipo.vy = 0;
   keys = {}; touchY = null;
+  document.getElementById('pauseBtn').style.display = 'block';
+  document.getElementById('msg').style.display = 'none';
   updateUI();
   setTimeout(loop, 200);
 }
@@ -278,6 +291,24 @@ function showEndScreen(win) {
 }
 
 let lastTime = 0;
+function togglePause() {
+  if (state !== 'playing' && state !== 'paused') return;
+  if (state === 'playing') {
+    state = 'paused';
+    document.getElementById('pauseBtn').textContent = '▶ Resume';
+    document.getElementById('pauseOverlay').style.display = 'block';
+  } else {
+    state = 'playing';
+    document.getElementById('pauseBtn').textContent = '⏸ Pause';
+    document.getElementById('pauseOverlay').style.display = 'none';
+    lastTime = performance.now();
+    loop();
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyP') togglePause();
+});
+
 function loop(ts = 0) {
   if (state !== 'playing') return;
   requestAnimationFrame(loop);
