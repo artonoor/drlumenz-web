@@ -76,7 +76,7 @@ let stars = [];
 let scrollX = 0;
 let worldX = 0;
 let zone = 0;
-const ZONES = ['The Open Sky', 'Storm of Noise', 'Valley of Doubt', 'The Fear Winds', 'The Tower of Conceit'];
+const ZONES = ['The Open Sky', 'Storm of Noise', 'Valley of Doubt', 'The Fear Winds', 'The Tower of Fear'];
 const ZONE_LEN = 4000;
 const TOTAL_LEN = ZONE_LEN * ZONES.length;
 let towerFired = false;
@@ -234,25 +234,40 @@ function drawPaipo(x, y, slow) {
 }
 
 function drawTower(x) {
+  const tTop = H * 0.05;
+  const tH = H * 0.9;
   // Tower body
-  ctx.fillStyle = '#1e3d56';
-  ctx.fillRect(x, H*0.15, 80, H*0.7);
-  ctx.fillStyle = '#c9a84c22';
-  ctx.fillRect(x, H*0.15, 80, H*0.7);
-  // Battlements
-  ctx.fillStyle = '#1e3d56';
-  for (let i = 0; i < 4; i++) {
-    ctx.fillRect(x + i*22, H*0.15 - 30, 16, 30);
+  ctx.fillStyle = '#1a2e3d';
+  ctx.fillRect(x, tTop, 80, tH);
+  // Stone texture overlay
+  ctx.fillStyle = '#c9a84c11';
+  ctx.fillRect(x, tTop, 80, tH);
+  // Battlements top
+  ctx.fillStyle = '#1a2e3d';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(x + i * 18, tTop - 24, 12, 24);
   }
-  // Gun
-  ctx.fillStyle = '#c9a84c';
-  ctx.fillRect(x - 30, H/2 - 8, 36, 16);
+  // 6 cannon heads evenly spaced down the tower
+  const cannon_ys = [0.15, 0.27, 0.39, 0.51, 0.63, 0.75].map(p => H * p);
+  cannon_ys.forEach(cy => {
+    // Cannon socket (circle on tower wall)
+    ctx.fillStyle = '#0d1b24';
+    ctx.beginPath(); ctx.arc(x + 4, cy, 10, 0, Math.PI * 2); ctx.fill();
+    // Cannon barrel
+    ctx.fillStyle = '#c9a84c';
+    ctx.fillRect(x - 28, cy - 6, 32, 12);
+    // Barrel tip circle
+    ctx.fillStyle = '#e0c068';
+    ctx.beginPath(); ctx.arc(x - 28, cy, 7, 0, Math.PI * 2); ctx.fill();
+  });
   // Label
   ctx.fillStyle = '#c9a84c';
   ctx.font = 'bold 11px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText('CONCEIT', x + 40, H*0.15 - 40);
-  ctx.fillText('THE TOWER', x + 40, H*0.15 - 55);
+  ctx.shadowColor = '#c9a84c';
+  ctx.shadowBlur = 10;
+  ctx.fillText('TOWER OF FEAR', x + 40, tTop - 32);
+  ctx.shadowBlur = 0;
 }
 
 function drawObstacle(ob) {
@@ -421,16 +436,16 @@ function loop(ts = 0) {
       }
     }
     // Tower fires 5 cannonballs at staggered intervals, spread vertically
-    const SHOT_HEIGHTS = [H*0.2, H*0.4, H*0.6, H*0.8, H*0.5];
-    const shotInterval = 40; // frames between each shot
+    const SHOT_HEIGHTS = [H*0.15, H*0.27, H*0.39, H*0.51, H*0.63, H*0.75];
+    const shotInterval = 35; // frames between each shot
     if (towerWarningTimer > 60) {
-      const shotsDue = Math.min(5, Math.floor((towerWarningTimer - 60) / shotInterval));
+      const shotsDue = Math.min(6, Math.floor((towerWarningTimer - 60) / shotInterval));
       if (shotsDue > towerShotsFired) {
         if (!paipo.slow) {
           const y = SHOT_HEIGHTS[towerShotsFired];
-          towerShots.push({ x: towerX - 30, y, vx: -9 - towerShotsFired * 0.8, r: 9 });
+          towerShots.push({ x: towerX - 28, y, vx: -9 - towerShotsFired * 0.7, r: 9 });
           towerShotsFired++;
-          if (towerShotsFired >= 5) towerFired = true;
+          if (towerShotsFired >= 6) towerFired = true;
         } else {
           // Secret — player slowing, tower stands down
           secretFound = true; won = true; score += 500;
