@@ -329,9 +329,13 @@ function loop(ts = 0) {
   }
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
-  const spawnRate = Math.max(220, 320 - zone * 15);
+  // 2-2-3-3-4 obstacles per zone, max 14 total
+  const ZONE_COUNTS = [2, 2, 3, 3, 4];
+  const zonePassed = obstacles.filter(o => o.passed).length;
+  const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
   const oneOnScreen = obstacles.filter(o => !o.passed).length < 1;
-  if (frame > 1800 && frame % spawnRate === 0 && oneOnScreen && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
+  const spawnRate = Math.max(200, 280 - zone * 10);
+  if (frame > 1800 && frame % spawnRate === 0 && oneOnScreen && zonePassed < totalAllowed && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
 
   // Tower zone
   const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
