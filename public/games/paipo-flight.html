@@ -55,6 +55,7 @@ const H = canvas.height = Math.min(500, window.innerHeight - 80);
 let state = 'idle'; // idle, playing, dead, won
 let score = 0, lives = 3, frame = 0;
 let paused = false;
+let lastSpawnFrame = 0;
 
 // Paipo — the macaw
 const paipo = {
@@ -95,7 +96,7 @@ function startGame() {
   setTimeout(() => document.getElementById('msg').style.display='none', 500);
   state = 'playing';
   score = 0; lives = 3; frame = 0; worldX = 0; zone = 0;
-  obstacles = []; particles = []; towerFired = false; towerShot = null; nextPhraseIndex = 0;
+  obstacles = []; particles = []; towerFired = false; towerShot = null; nextPhraseIndex = 0; lastSpawnFrame = 0;
   secretFound = false; towerWarning = false; won = false;
   paipo.y = H/2; paipo.vy = 0;
   keys = {}; touchY = null;
@@ -389,9 +390,12 @@ function loop(ts = 0) {
   const ZONE_COUNTS = [1, 0, 0, 0, 0];
   const zonePassed = obstacles.filter(o => o.passed).length;
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
-  const oneOnScreen = obstacles.filter(o => !o.passed).length < 1;
-  const spawnRate = Math.max(200, 280 - zone * 10);
-  if (frame > 1800 && frame % spawnRate === 0 && oneOnScreen && zonePassed < totalAllowed && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
+  const noneOnScreen = obstacles.filter(o => !o.passed).length === 0;
+  const minGap = 380; // frames between spawns
+  if (frame > 1800 && noneOnScreen && zonePassed < totalAllowed && (frame - lastSpawnFrame) > minGap && worldX < TOTAL_LEN - ZONE_LEN * 0.8) {
+    lastSpawnFrame = frame;
+    spawnObstacle();
+  }
 
   // Tower zone
   const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
