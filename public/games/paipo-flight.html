@@ -65,7 +65,7 @@ let scrollX = 0;
 let worldX = 0;
 let zone = 0;
 const ZONES = ['The Open Sky', 'Storm of Noise', 'Valley of Doubt', 'The Fear Winds', 'The Tower of Conceit'];
-const ZONE_LEN = 2400;
+const ZONE_LEN = 4000;
 const TOTAL_LEN = ZONE_LEN * ZONES.length;
 let towerFired = false;
 let towerShot = null;
@@ -330,7 +330,7 @@ function loop(ts = 0) {
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
   // 2-2-3-3-4 obstacles per zone, max 14 total
-  const ZONE_COUNTS = [1, 1, 2, 2, 3];
+  const ZONE_COUNTS = [1, 1, 1, 2, 2];
   const zonePassed = obstacles.filter(o => o.passed).length;
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
   const oneOnScreen = obstacles.filter(o => !o.passed).length < 1;
