@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paipo's Mind Flight — a dr L game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1b24; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: Georgia, serif; color: #e8dfc8; overflow: hidden; }
+  #canvas { border: 1px solid #c9a84c22; border-radius: 12px; display: block; }
+  #ui { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 32px; align-items: center; font-size: 13px; letter-spacing: 0.15em; color: #c9a84c; text-transform: uppercase; pointer-events: none; }
+  #msg { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; transition: opacity 0.5s; }
+  #msg h2 { font-size: 2.2rem; color: #c9a84c; margin-bottom: 12px; }
+  #msg p { font-size: 1rem; color: #e8dfc8; line-height: 1.8; max-width: 420px; }
+  #msg .hint { font-size: 0.8rem; color: #7a9aaa; margin-top: 16px; letter-spacing: 0.15em; text-transform: uppercase; }
+  #startBtn { margin-top: 24px; background: #c9a84c; color: #0d1b24; border: none; padding: 12px 32px; border-radius: 50px; font-family: Georgia, serif; font-size: 1rem; cursor: pointer; letter-spacing: 0.1em; }
+  #startBtn:hover { background: #e0c068; }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <span>Lives: <span id="lives">3</span></span>
+  <span>Score: <span id="score">0</span></span>
+  <span id="zone">Zone: The Open Sky</span>
+</div>
+
+<div id="msg">
+  <h2>Paipo's Mind Flight</h2>
+  <p>Help Paipo fly through the storm of distractions.<br>Navigate the noise. Dodge the doubts.<br>Find the one secret move at the end.</p>
+  <p class="hint">↑ ↓ or tap to fly · Space to slow down</p>
+  <button id="startBtn" onclick="startGame()">Begin the Flight →</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width = Math.min(900, window.innerWidth - 32);
+const H = canvas.height = Math.min(500, window.innerHeight - 80);
+
+// Game state
+let state = 'idle'; // idle, playing, dead, won
+let score = 0, lives = 3, frame = 0;
+let paused = false;
+
+// Paipo — the macaw
+const paipo = {
+  x: 100, y: H/2,
+  vy: 0, speed: 3,
+  slow: false,
+  w: 52, h: 36,
+  wingAngle: 0,
+  color: '#e84040',
+  bodyColor: '#2255cc',
+  tailColor: '#f5c842',
+};
+
+// Obstacles
+let obstacles = [];
+let particles = [];
+let stars = [];
+let scrollX = 0;
+let worldX = 0;
+let zone = 0;
+const ZONES = ['The Open Sky', 'Storm of Noise', 'Valley of Doubt', 'The Fear Winds', 'The Tower of Conceit'];
+const ZONE_LEN = 2400;
+const TOTAL_LEN = ZONE_LEN * ZONES.length;
+let towerFired = false;
+let towerShot = null;
+let secretFound = false;
+let towerWarning = false;
+let towerWarningTimer = 0;
+let won = false;
+
+// Stars background
+for (let i = 0; i < 80; i++) {
+  stars.push({ x: Math.random()*W, y: Math.random()*H, r: Math.random()*1.5+0.3, speed: Math.random()*0.5+0.2 });
+}
+
+function startGame() {
+  document.getElementById('msg').style.opacity = '0';
+  setTimeout(() => document.getElementById('msg').style.display='none', 500);
+  state = 'playing';
+  score = 0; lives = 3; frame = 0; worldX = 0; zone = 0;
+  obstacles = []; particles = []; towerFired = false; towerShot = null;
+  secretFound = false; towerWarning = false; won = false;
+  paipo.y = H/2; paipo.vy = 0;
+  updateUI();
+  loop();
+}
+
+// Input
+let keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); paipo.slow = true; }
+});
+document.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'Space') paipo.slow = false;
+});
+// Touch
+let touchY = null;
+canvas.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; paipo.slow = true; });
+canvas.addEventListener('touchend', () => { touchY = null; paipo.slow = false; });
+canvas.addEventListener('touchmove', e => { touchY = e.touches[0].clientY; e.preventDefault(); }, { passive: false });
+
+function spawnObstacle() {
+  const z = Math.floor(worldX / ZONE_LEN);
+  const types = ['noise', 'doubt', 'fear', 'comparison'];
+  const type = types[Math.min(z, types.length-1)];
+  const labels = { noise: 'NOISE', doubt: 'DOUBT', fear: 'FEAR', comparison: 'COMPARE' };
+  const colors = { noise: '#ff6b35', doubt: '#6b35ff', fear: '#35b5ff', comparison: '#ff35b5' };
+  const gap = Math.max(130, 180 - z*15);
+  const cy = 80 + Math.random() * (H - 160);
+  obstacles.push({
+    x: W + 60,
+    topH: cy - gap/2,
+    botY: cy + gap/2,
+    w: 28,
+    color: colors[type] || '#ff6b35',
+    label: labels[type] || 'NOISE',
+    passed: false,
+    speed: 1.8 + z * 0.3 + Math.random() * 0.5,
+  });
+}
+
+function spawnParticle(x, y, color) {
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 2 + Math.random() * 4;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 40, color });
+  }
+}
+
+function drawPaipo(x, y, slow) {
+  const wf = Math.sin(paipo.wingAngle) * 10;
+  // Tail
+  ctx.fillStyle = paipo.tailColor;
+  ctx.beginPath();
+  ctx.moveTo(x - 20, y);
+  ctx.lineTo(x - 40, y - 8 + wf*0.3);
+  ctx.lineTo(x - 36, y + 4);
+  ctx.fill();
+  // Body
+  ctx.fillStyle = paipo.bodyColor;
+  ctx.beginPath();
+  ctx.ellipse(x, y, 22, 13, -0.15, 0, Math.PI*2);
+  ctx.fill();
+  // Wing top
+  ctx.fillStyle = '#3399ff';
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y - 5);
+  ctx.quadraticCurveTo(x, y - 20 - wf, x + 18, y - 8);
+  ctx.quadraticCurveTo(x + 5, y - 5, x - 10, y - 5);
+  ctx.fill();
+  // Wing bottom
+  ctx.fillStyle = '#1166cc';
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y + 4);
+  ctx.quadraticCurveTo(x + 4, y + 16 + wf*0.5, x + 20, y + 6);
+  ctx.quadraticCurveTo(x + 5, y + 4, x - 10, y + 4);
+  ctx.fill();
+  // Red chest
+  ctx.fillStyle = paipo.color;
+  ctx.beginPath();
+  ctx.ellipse(x + 6, y + 2, 12, 9, 0.2, 0, Math.PI*2);
+  ctx.fill();
+  // Head
+  ctx.fillStyle = '#22aa44';
+  ctx.beginPath();
+  ctx.arc(x + 18, y - 6, 10, 0, Math.PI*2);
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x + 21, y - 8, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath(); ctx.arc(x + 22, y - 8, 2, 0, Math.PI*2); ctx.fill();
+  // Beak
+  ctx.fillStyle = '#f5c842';
+  ctx.beginPath();
+  ctx.moveTo(x + 27, y - 6);
+  ctx.lineTo(x + 36, y - 4);
+  ctx.lineTo(x + 27, y - 2);
+  ctx.fill();
+  // Slow glow
+  if (slow) {
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#c9a84c';
+    ctx.beginPath(); ctx.arc(x, y, 32, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawTower(x) {
+  // Tower body
+  ctx.fillStyle = '#1e3d56';
+  ctx.fillRect(x, H*0.15, 80, H*0.7);
+  ctx.fillStyle = '#c9a84c22';
+  ctx.fillRect(x, H*0.15, 80, H*0.7);
+  // Battlements
+  ctx.fillStyle = '#1e3d56';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x + i*22, H*0.15 - 30, 16, 30);
+  }
+  // Gun
+  ctx.fillStyle = '#c9a84c';
+  ctx.fillRect(x - 30, H/2 - 8, 36, 16);
+  // Label
+  ctx.fillStyle = '#c9a84c';
+  ctx.font = 'bold 11px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('CONCEIT', x + 40, H*0.15 - 40);
+  ctx.fillText('THE TOWER', x + 40, H*0.15 - 55);
+}
+
+function drawObstacle(ob) {
+  // Top pipe
+  const grad = ctx.createLinearGradient(ob.x, 0, ob.x + ob.w, 0);
+  grad.addColorStop(0, ob.color + 'dd');
+  grad.addColorStop(1, ob.color + '66');
+  ctx.fillStyle = grad;
+  ctx.fillRect(ob.x, 0, ob.w, ob.topH);
+  // Bottom pipe
+  ctx.fillRect(ob.x, ob.botY, ob.w, H - ob.botY);
+  // Label
+  ctx.fillStyle = ob.color;
+  ctx.font = '9px Georgia';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '2px';
+  ctx.fillText(ob.label, ob.x + ob.w/2, ob.topH - 8);
+}
+
+function rect(ax,ay,aw,ah, bx,by,bw,bh) {
+  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+}
+
+function updateUI() {
+  document.getElementById('lives').textContent = lives;
+  document.getElementById('score').textContent = score;
+  document.getElementById('zone').textContent = 'Zone: ' + (ZONES[zone] || ZONES[ZONES.length-1]);
+}
+
+function showEndScreen(win) {
+  const msg = document.getElementById('msg');
+  msg.style.display = 'flex';
+  msg.style.flexDirection = 'column';
+  msg.style.alignItems = 'center';
+  msg.style.opacity = '1';
+  if (win) {
+    msg.innerHTML = `
+      <h2>✦ You Found the Secret ✦</h2>
+      <p>When Conceit fired its lethal shot —<br>you slowed down.<br>Every instinct said fly faster.<br>You chose differently.</p>
+      <p style="color:#c9a84c;margin-top:16px;font-style:italic;">"The wise ones don't speed through the tower.<br>They slow down. That's the only move that works."</p>
+      <p class="hint" style="margin-top:8px;">— dr L</p>
+      <button class="startBtn" style="margin-top:24px;background:#c9a84c;color:#0d1b24;border:none;padding:12px 32px;border-radius:50px;font-family:Georgia,serif;font-size:1rem;cursor:pointer;" onclick="startGame()">Fly Again →</button>`;
+  } else {
+    msg.innerHTML = `
+      <h2>Paipo fell.</h2>
+      <p>The distractions won this time.<br>But the tower is still waiting.<br>And so is the secret.</p>
+      <p class="hint" style="margin-top:16px;">Hint: at the final tower — try the Space bar</p>
+      <button style="margin-top:24px;background:#c9a84c;color:#0d1b24;border:none;padding:12px 32px;border-radius:50px;font-family:Georgia,serif;font-size:1rem;cursor:pointer;" onclick="startGame()">Try Again →</button>`;
+  }
+}
+
+let lastTime = 0;
+function loop(ts = 0) {
+  if (state !== 'playing') return;
+  requestAnimationFrame(loop);
+
+  const dt = Math.min(ts - lastTime, 50);
+  lastTime = ts;
+  frame++;
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
+  const z = Math.min(zone, 4);
+  const bgColors = ['#0d1b24','#1a0d24','#0d1a24','#1a1a0d','#1a0d0d'];
+  bgGrad.addColorStop(0, bgColors[z]);
+  bgGrad.addColorStop(1, bgColors[Math.min(z+1,4)]);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  stars.forEach(s => {
+    s.x -= s.speed * (paipo.slow ? 0.3 : 1);
+    if (s.x < 0) s.x = W;
+    ctx.fillStyle = `rgba(232,223,200,${0.3+s.r*0.2})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+  });
+
+  // Zone progress line
+  const prog = Math.min(worldX / TOTAL_LEN, 1);
+  ctx.fillStyle = '#ffffff11';
+  ctx.fillRect(0, H-4, W, 4);
+  ctx.fillStyle = '#c9a84c';
+  ctx.fillRect(0, H-4, W * prog, 4);
+
+  // Move world
+  const spd = paipo.slow ? 1.2 : (2.5 + zone * 0.4);
+  worldX += spd;
+  zone = Math.min(Math.floor(worldX / ZONE_LEN), ZONES.length - 1);
+
+  // Paipo controls
+  paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
+  const gravity = paipo.slow ? 0.12 : 0.28;
+  const lift = paipo.slow ? -0.22 : -0.5;
+
+  if (keys['ArrowUp'] || keys['KeyW']) paipo.vy += lift;
+  if (keys['ArrowDown'] || keys['KeyS']) paipo.vy += 0.3;
+  if (touchY !== null) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const ty = touchY - canvasRect.top;
+    if (ty < paipo.y) paipo.vy += lift;
+    else paipo.vy += 0.3;
+  }
+
+  paipo.vy += gravity;
+  paipo.vy = Math.max(-9, Math.min(9, paipo.vy));
+  paipo.y += paipo.vy;
+
+  // Boundaries
+  if (paipo.y < 20) { paipo.y = 20; paipo.vy = 0; }
+  if (paipo.y > H - 20) { loseLife(); return; }
+
+  // Spawn obstacles
+  const spawnRate = Math.max(60, 110 - zone * 10);
+  if (frame % spawnRate === 0 && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
+
+  // Tower zone
+  const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
+  const towerX = W * 0.7;
+
+  if (isTowerZone) {
+    drawTower(towerX);
+    // Tower warning pulse
+    if (!towerFired) {
+      towerWarningTimer++;
+      if (towerWarningTimer % 30 < 15) {
+        ctx.fillStyle = 'rgba(201,168,76,0.06)';
+        ctx.fillRect(0,0,W,H);
+      }
+    }
+    // Tower fires if NOT slowing
+    if (!towerFired && towerWarningTimer > 60) {
+      if (!paipo.slow) {
+        // Fire the lethal shot
+        towerShot = { x: towerX - 30, y: H/2, vx: -12, r: 8 };
+        towerFired = true;
+      } else {
+        // Secret found — player is slowing down
+        secretFound = true;
+        won = true;
+        score += 500;
+        state = 'won';
+        updateUI();
+        showEndScreen(true);
+        return;
+      }
+    }
+  }
+
+  // Tower shot
+  if (towerShot) {
+    towerShot.x += towerShot.vx;
+    // Draw shot
+    ctx.fillStyle = '#ff3333';
+    ctx.shadowColor = '#ff3333';
+    ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(towerShot.x, towerShot.y, towerShot.r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Hit Paipo?
+    if (Math.abs(towerShot.x - paipo.x) < 28 && Math.abs(towerShot.y - paipo.y) < 24) {
+      loseLife();
+      return;
+    }
+    if (towerShot.x < -20) towerShot = null;
+  }
+
+  // Update obstacles
+  obstacles = obstacles.filter(ob => ob.x > -80);
+  obstacles.forEach(ob => {
+    ob.x -= ob.speed * (paipo.slow ? 0.5 : 1);
+    drawObstacle(ob);
+    // Score
+    if (!ob.passed && ob.x + ob.w < paipo.x) {
+      ob.passed = true;
+      score += 10;
+      updateUI();
+    }
+    // Collision
+    const px = paipo.x - 16, py = paipo.y - 10, pw = 32, ph = 20;
+    if (rect(px, py, pw, ph, ob.x, 0, ob.w, ob.topH) ||
+        rect(px, py, pw, ph, ob.x, ob.botY, ob.w, H - ob.botY)) {
+      spawnParticle(paipo.x, paipo.y, '#ff6b35');
+      loseLife();
+      return;
+    }
+  });
+
+  // Particles
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.life--;
+    ctx.globalAlpha = p.life/40;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+
+  // Draw Paipo
+  drawPaipo(paipo.x, paipo.y, paipo.slow);
+
+  // Zone label fade-in
+  if (frame % (ZONE_LEN / spd * 0.95) < 90) {
+    const alpha = Math.min(1, (frame % (ZONE_LEN/spd*0.95)) / 30) * Math.min(1, (90 - frame%(ZONE_LEN/spd*0.95))/30);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = '13px Georgia';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = '4px';
+    ctx.fillText(ZONES[zone]?.toUpperCase(), W/2, 40);
+    ctx.globalAlpha = 1;
+  }
+
+  // Slow indicator
+  if (paipo.slow) {
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = '11px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText('· SLOW ·', paipo.x + 40, paipo.y - 20);
+  }
+
+  // Win by passing whole world without tower challenge
+  if (worldX > TOTAL_LEN && !isTowerZone) {
+    state = 'won';
+    showEndScreen(true);
+  }
+}
+
+function loseLife() {
+  lives--;
+  updateUI();
+  spawnParticle(paipo.x, paipo.y, '#ff3333');
+  paipo.vy = -5;
+  towerFired = false; towerShot = null; towerWarningTimer = 0;
+  if (lives <= 0) {
+    state = 'dead';
+    showEndScreen(false);
+  } else {
+    // Brief respawn pause
+    paipo.y = H/2;
+    obstacles = obstacles.filter(ob => ob.x < paipo.x - 100);
+  }
+}
+
+// Initial draw
+ctx.fillStyle = '#0d1b24';
+ctx.fillRect(0,0,W,H);
+stars.forEach(s => {
+  ctx.fillStyle = `rgba(232,223,200,0.4)`;
+  ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+});
+drawPaipo(100, H/2, false);
+</script>
+
+<div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);font-size:11px;color:#7a9aaa;letter-spacing:0.15em;text-align:center;">
+  A FREE GIFT FROM DR L · DRLUMENZ.COM
+</div>
+
+</body>
+</html>
