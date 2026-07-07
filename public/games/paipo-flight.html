@@ -405,7 +405,7 @@ function loop(ts = 0) {
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
   // 2-2-3-3-4 obstacles per zone, max 14 total
-  const ZONE_COUNTS = [1, 0, 0, 0, 0];
+  const ZONE_COUNTS = [1, 1, 2, 2, 2];
   const zonePassed = obstacles.filter(o => o.passed).length;
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
   const noneOnScreen = obstacles.length === 0; // wait until obstacle fully exits before spawning next
@@ -537,7 +537,9 @@ function loop(ts = 0) {
   }
 
   // Win by passing whole world without tower challenge
-  if (worldX > TOTAL_LEN && !isTowerZone) {
+  // Win: survived past total length, OR tower fired all 6 shots and they've all exited
+  const towerDone = towerFired && towerShots.length === 0;
+  if (worldX > TOTAL_LEN || towerDone) {
     state = 'won';
     showEndScreen(true);
   }
