@@ -97,7 +97,7 @@ let keys = {};
 document.addEventListener('keydown', e => {
   if (state !== 'playing') return;
   if ((e.code === 'ArrowUp' || e.code === 'KeyW') && !keys[e.code]) {
-    paipo.vy = -4.5; // tap = flap burst
+    paipo.vy = -6.5; // tap = flap burst
   }
   if (e.code === 'ArrowDown' || e.code === 'KeyS') paipo.vy += 2;
   if (e.code === 'Space') { e.preventDefault(); paipo.slow = true; }
@@ -108,11 +108,11 @@ document.addEventListener('keyup', e => {
   if (e.code === 'Space') paipo.slow = false;
 });
 // Click or tap anywhere to flap
-function doFlap() { if (state === 'playing') paipo.vy = -4.5; }
+function doFlap() { if (state === 'playing') paipo.vy = -6.5; }
 canvas.addEventListener('mousedown', doFlap);
 canvas.addEventListener('touchstart', e => {
   if (state !== 'playing') return;
-  paipo.vy = -4.5;
+  paipo.vy = -6.5;
   e.preventDefault();
 }, { passive: false });
 canvas.addEventListener('touchend', () => {});
@@ -124,7 +124,7 @@ function spawnObstacle() {
   const type = types[Math.min(z, types.length-1)];
   const labels = { noise: 'NOISE', doubt: 'DOUBT', fear: 'FEAR', comparison: 'COMPARE' };
   const colors = { noise: '#ff6b35', doubt: '#6b35ff', fear: '#35b5ff', comparison: '#ff35b5' };
-  const gap = Math.max(160, 220 - z*10);
+  const gap = Math.max(220, 300 - z*10);
   const cy = 80 + Math.random() * (H - 160);
   obstacles.push({
     x: W + 60,
@@ -134,7 +134,7 @@ function spawnObstacle() {
     color: colors[type] || '#ff6b35',
     label: labels[type] || 'NOISE',
     passed: false,
-    speed: 1.8 + z * 0.3 + Math.random() * 0.5,
+    speed: 1.2 + z * 0.15 + Math.random() * 0.3,
   });
 }
 
@@ -317,9 +317,9 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = frame < 1800 ? 0 : (paipo.slow ? 0.06 : 0.14);
+  const gravity = frame < 1800 ? 0 : (paipo.slow ? 0.04 : 0.09);
   paipo.vy += gravity;
-  paipo.vy = Math.max(-9, Math.min(9, paipo.vy));
+  paipo.vy = Math.max(-10, Math.min(7, paipo.vy));
   paipo.y += paipo.vy;
 
   // Boundaries — soft bounce, no death during free fly
