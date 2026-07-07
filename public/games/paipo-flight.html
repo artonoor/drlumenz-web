@@ -148,18 +148,18 @@ function spawnObstacle() {
   if (nextPhraseIndex >= THOUGHT_PHRASES.length) return;
   const phrase = THOUGHT_PHRASES[nextPhraseIndex++];
   // Place text band in lower half so bird naturally rises above it
-  const bandH = 52;
+  const bandH = 80;
   const cy = H * 0.58 + (Math.random() - 0.5) * (H * 0.2);
   obstacles.push({
-    x: W + 200,
+    x: W + 20,
     text: phrase.text,
     color: phrase.color,
-    cy,           // vertical centre of the danger band
-    bandH,        // height of the danger zone
-    w: 10,        // used for passed detection (trailing edge)
+    cy,
+    bandH,
+    w: 10,
     passed: false,
-    speed: 1.0 + Math.random() * 0.3,
-    alpha: 0,     // fade in
+    speed: 1.0 + Math.random() * 0.2,
+    alpha: 1,
   });
 }
 
@@ -254,29 +254,28 @@ function drawTower(x) {
 }
 
 function drawObstacle(ob) {
-  ob.alpha = Math.min(1, ob.alpha + 0.02);
   ctx.save();
-  ctx.globalAlpha = ob.alpha;
 
-  // Glowing danger band
+  // Measure text width for the band
+  ctx.font = 'italic bold 52px Georgia';
+  const tw = ctx.measureText(ob.text).width;
   const bandTop = ob.cy - ob.bandH / 2;
+
+  // Full-width glowing band behind the text
   const bandGrad = ctx.createLinearGradient(0, bandTop, 0, bandTop + ob.bandH);
   bandGrad.addColorStop(0,   ob.color + '00');
-  bandGrad.addColorStop(0.3, ob.color + '22');
-  bandGrad.addColorStop(0.7, ob.color + '22');
+  bandGrad.addColorStop(0.4, ob.color + '33');
+  bandGrad.addColorStop(0.6, ob.color + '33');
   bandGrad.addColorStop(1,   ob.color + '00');
   ctx.fillStyle = bandGrad;
-  ctx.fillRect(ob.x - 160, bandTop, 420, ob.bandH);
+  ctx.fillRect(ob.x - tw * 0.1, bandTop, tw * 1.2, ob.bandH);
 
-  // The phrase — large, italic, drifting
-  ctx.font = 'italic 26px Georgia';
-  ctx.textAlign = 'center';
-  ctx.letterSpacing = '1px';
-  // Soft glow
+  // Big glowing text
+  ctx.textAlign = 'left';
   ctx.shadowColor = ob.color;
-  ctx.shadowBlur = 18;
-  ctx.fillStyle = ob.color + 'cc';
-  ctx.fillText(ob.text, ob.x, ob.cy + 9);
+  ctx.shadowBlur = 32;
+  ctx.fillStyle = ob.color;
+  ctx.fillText(ob.text, ob.x, ob.cy + 18);
   ctx.shadowBlur = 0;
 
   ctx.restore();
@@ -456,7 +455,7 @@ function loop(ts = 0) {
       updateUI();
     }
     // Collision — bird inside the danger band while text is on screen
-    const inXRange = ob.x > paipo.x - 180 && ob.x < paipo.x + 60;
+    const inXRange = ob.x < paipo.x + 20 && ob.x + 500 > paipo.x;
     const inBand = paipo.y > ob.cy - ob.bandH/2 && paipo.y < ob.cy + ob.bandH/2;
     if (inXRange && inBand) {
       spawnParticle(paipo.x, paipo.y, ob.color);
