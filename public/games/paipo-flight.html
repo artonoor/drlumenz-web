@@ -95,7 +95,7 @@ function startGame() {
   setTimeout(() => document.getElementById('msg').style.display='none', 500);
   state = 'playing';
   score = 0; lives = 3; frame = 0; worldX = 0; zone = 0;
-  obstacles = []; particles = []; towerFired = false; towerShot = null;
+  obstacles = []; particles = []; towerFired = false; towerShot = null; nextPhraseIndex = 0;
   secretFound = false; towerWarning = false; won = false;
   paipo.y = H/2; paipo.vy = 0;
   keys = {}; touchY = null;
@@ -131,23 +131,35 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('touchend', () => {});
 let touchY = null;
 
+// Negative thought phrases — one per obstacle slot, in order
+const THOUGHT_PHRASES = [
+  { text: "You will never fly",      color: '#c97a4c', zone: 0 },
+  { text: "This is too hard",        color: '#6b35ff', zone: 1 },
+  { text: "You always give up",      color: '#4c8fcf', zone: 2 },
+  { text: "Nobody believes in you",  color: '#4c8fcf', zone: 2 },
+  { text: "It will not work",        color: '#cf4c6b', zone: 3 },
+  { text: "You will fail",           color: '#cf4c6b', zone: 3 },
+  { text: "You are not enough",      color: '#9b4ccf', zone: 4 },
+  { text: "Give up now",             color: '#9b4ccf', zone: 4 },
+];
+let nextPhraseIndex = 0;
+
 function spawnObstacle() {
-  const z = Math.floor(worldX / ZONE_LEN);
-  const types = ['noise', 'doubt', 'fear', 'comparison'];
-  const type = types[Math.min(z, types.length-1)];
-  const labels = { noise: 'NOISE', doubt: 'DOUBT', fear: 'FEAR', comparison: 'COMPARE' };
-  const colors = { noise: '#ff6b35', doubt: '#6b35ff', fear: '#35b5ff', comparison: '#ff35b5' };
-  const gap = Math.max(220, 300 - z*10);
-  const cy = 80 + Math.random() * (H - 160);
+  if (nextPhraseIndex >= THOUGHT_PHRASES.length) return;
+  const phrase = THOUGHT_PHRASES[nextPhraseIndex++];
+  // Place text band in lower half so bird naturally rises above it
+  const bandH = 52;
+  const cy = H * 0.58 + (Math.random() - 0.5) * (H * 0.2);
   obstacles.push({
-    x: W + 60,
-    topH: cy - gap/2,
-    botY: cy + gap/2,
-    w: 28,
-    color: colors[type] || '#ff6b35',
-    label: labels[type] || 'NOISE',
+    x: W + 200,
+    text: phrase.text,
+    color: phrase.color,
+    cy,           // vertical centre of the danger band
+    bandH,        // height of the danger zone
+    w: 10,        // used for passed detection (trailing edge)
     passed: false,
-    speed: 1.2 + z * 0.15 + Math.random() * 0.3,
+    speed: 1.0 + Math.random() * 0.3,
+    alpha: 0,     // fade in
   });
 }
 
@@ -242,20 +254,32 @@ function drawTower(x) {
 }
 
 function drawObstacle(ob) {
-  // Top pipe
-  const grad = ctx.createLinearGradient(ob.x, 0, ob.x + ob.w, 0);
-  grad.addColorStop(0, ob.color + 'dd');
-  grad.addColorStop(1, ob.color + '66');
-  ctx.fillStyle = grad;
-  ctx.fillRect(ob.x, 0, ob.w, ob.topH);
-  // Bottom pipe
-  ctx.fillRect(ob.x, ob.botY, ob.w, H - ob.botY);
-  // Label
-  ctx.fillStyle = ob.color;
-  ctx.font = '9px Georgia';
+  ob.alpha = Math.min(1, ob.alpha + 0.02);
+  ctx.save();
+  ctx.globalAlpha = ob.alpha;
+
+  // Glowing danger band
+  const bandTop = ob.cy - ob.bandH / 2;
+  const bandGrad = ctx.createLinearGradient(0, bandTop, 0, bandTop + ob.bandH);
+  bandGrad.addColorStop(0,   ob.color + '00');
+  bandGrad.addColorStop(0.3, ob.color + '22');
+  bandGrad.addColorStop(0.7, ob.color + '22');
+  bandGrad.addColorStop(1,   ob.color + '00');
+  ctx.fillStyle = bandGrad;
+  ctx.fillRect(ob.x - 160, bandTop, 420, ob.bandH);
+
+  // The phrase — large, italic, drifting
+  ctx.font = 'italic 26px Georgia';
   ctx.textAlign = 'center';
-  ctx.letterSpacing = '2px';
-  ctx.fillText(ob.label, ob.x + ob.w/2, ob.topH - 8);
+  ctx.letterSpacing = '1px';
+  // Soft glow
+  ctx.shadowColor = ob.color;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = ob.color + 'cc';
+  ctx.fillText(ob.text, ob.x, ob.cy + 9);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
 }
 
 function rect(ax,ay,aw,ah, bx,by,bw,bh) {
@@ -363,7 +387,7 @@ function loop(ts = 0) {
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
   // 2-2-3-3-4 obstacles per zone, max 14 total
-  const ZONE_COUNTS = [0, 0, 0, 0, 0];
+  const ZONE_COUNTS = [1, 0, 0, 0, 0];
   const zonePassed = obstacles.filter(o => o.passed).length;
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
   const oneOnScreen = obstacles.filter(o => !o.passed).length < 1;
@@ -421,23 +445,22 @@ function loop(ts = 0) {
   }
 
   // Update obstacles
-  obstacles = obstacles.filter(ob => ob.x > -80);
+  obstacles = obstacles.filter(ob => ob.x > -600);
   obstacles.forEach(ob => {
     ob.x -= ob.speed * (paipo.slow ? 0.5 : 1);
     drawObstacle(ob);
-    // Score
-    if (!ob.passed && ob.x + ob.w < paipo.x) {
+    // Score — passed when text centre clears Paipo
+    if (!ob.passed && ob.x < paipo.x - 80) {
       ob.passed = true;
       score += 10;
       updateUI();
     }
-    // Collision
-    const px = paipo.x - 16, py = paipo.y - 10, pw = 32, ph = 20;
-    if (rect(px, py, pw, ph, ob.x, 0, ob.w, ob.topH) ||
-        rect(px, py, pw, ph, ob.x, ob.botY, ob.w, H - ob.botY)) {
-      spawnParticle(paipo.x, paipo.y, '#ff6b35');
+    // Collision — bird inside the danger band while text is on screen
+    const inXRange = ob.x > paipo.x - 180 && ob.x < paipo.x + 60;
+    const inBand = paipo.y > ob.cy - ob.bandH/2 && paipo.y < ob.cy + ob.bandH/2;
+    if (inXRange && inBand) {
+      spawnParticle(paipo.x, paipo.y, ob.color);
       loseLife();
-      return;
     }
   });
 
