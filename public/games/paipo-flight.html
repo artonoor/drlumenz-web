@@ -87,8 +87,9 @@ function startGame() {
   obstacles = []; particles = []; towerFired = false; towerShot = null;
   secretFound = false; towerWarning = false; won = false;
   paipo.y = H/2; paipo.vy = 0;
+  keys = {}; touchY = null;
   updateUI();
-  loop();
+  setTimeout(loop, 200);
 }
 
 // Input
