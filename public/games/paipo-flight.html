@@ -306,7 +306,7 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = frame < 1800 ? 0.06 : (paipo.slow ? 0.06 : 0.13);
+  const gravity = frame < 1800 ? 0.02 : (paipo.slow ? 0.03 : 0.07);
   const lift = paipo.slow ? -0.28 : -0.55;
 
   if (keys['ArrowUp'] || keys['KeyW']) paipo.vy += lift;
@@ -322,9 +322,13 @@ function loop(ts = 0) {
   paipo.vy = Math.max(-9, Math.min(9, paipo.vy));
   paipo.y += paipo.vy;
 
-  // Boundaries
-  if (paipo.y < 20) { paipo.y = 20; paipo.vy = 0; }
-  if (paipo.y > H - 20) { loseLife(); return; }
+  // Boundaries — soft bounce, no death during free fly
+  if (paipo.y < 20) { paipo.y = 20; paipo.vy = Math.abs(paipo.vy) * 0.4; }
+  if (paipo.y > H - 20) {
+    paipo.y = H - 20;
+    paipo.vy = -Math.abs(paipo.vy) * 0.4;
+    if (frame > 1800) loseLife();
+  }
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
   const spawnRate = Math.max(90, 180 - zone * 12);
