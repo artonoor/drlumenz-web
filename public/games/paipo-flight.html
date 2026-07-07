@@ -391,7 +391,7 @@ function loop(ts = 0) {
   const ZONE_COUNTS = [1, 0, 0, 0, 0];
   const zonePassed = obstacles.filter(o => o.passed).length;
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
-  const noneOnScreen = obstacles.filter(o => !o.passed).length === 0;
+  const noneOnScreen = obstacles.length === 0; // wait until obstacle fully exits before spawning next
   const minGap = 380; // frames between spawns
   if (frame > 480 && noneOnScreen && zonePassed < totalAllowed && (frame - lastSpawnFrame) > minGap && worldX < TOTAL_LEN - ZONE_LEN * 0.8) {
     lastSpawnFrame = frame;
@@ -531,7 +531,7 @@ function loseLife() {
   } else {
     // Brief respawn pause
     paipo.y = H/2;
-    obstacles = obstacles.filter(ob => ob.x < paipo.x - 100);
+    obstacles = []; // clear on respawn
   }
 }
 
