@@ -306,7 +306,7 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = paipo.slow ? 0.06 : 0.13;
+  const gravity = frame < 1800 ? 0.06 : (paipo.slow ? 0.06 : 0.13);
   const lift = paipo.slow ? -0.28 : -0.55;
 
   if (keys['ArrowUp'] || keys['KeyW']) paipo.vy += lift;
@@ -326,9 +326,9 @@ function loop(ts = 0) {
   if (paipo.y < 20) { paipo.y = 20; paipo.vy = 0; }
   if (paipo.y > H - 20) { loseLife(); return; }
 
-  // Spawn obstacles
+  // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
   const spawnRate = Math.max(90, 180 - zone * 12);
-  if (frame % spawnRate === 0 && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
+  if (frame > 1800 && frame % spawnRate === 0 && worldX < TOTAL_LEN - ZONE_LEN * 0.8) spawnObstacle();
 
   // Tower zone
   const isTowerZone = worldX > TOTAL_LEN - ZONE_LEN * 0.85;
@@ -423,6 +423,17 @@ function loop(ts = 0) {
     ctx.textAlign = 'center';
     ctx.letterSpacing = '4px';
     ctx.fillText(ZONES[zone]?.toUpperCase(), W/2, 40);
+    ctx.globalAlpha = 1;
+  }
+
+  // Free fly message
+  if (frame < 1800) {
+    const alpha = frame < 120 ? frame/120 : (frame > 1600 ? (1800-frame)/200 : 1);
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = '14px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText('The Open Sky is yours. Fly free.', W/2, H - 40);
     ctx.globalAlpha = 1;
   }
 
