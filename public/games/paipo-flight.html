@@ -388,95 +388,22 @@ function loop(ts = 0) {
   lastTime = ts;
   frame++;
 
-  // Background — vertical gradient per zone
-  const zoneBg = [
-    ['#1a0a2e','#c47a3a'],  // 0 Open Sky — dawn purple to warm horizon
-    ['#0a1a30','#d4822a'],  // 1 Storm of Noise — deep blue, orange rush
-    ['#111118','#222230'],  // 2 Valley of Doubt — dark grey overcast
-    ['#1a0400','#5a0f00'],  // 3 Fear Winds — deep red, fiery
-    ['#000000','#080008'],  // 4 Tower of Fear — near void
-  ];
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
   const z = Math.min(zone, 4);
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, zoneBg[z][0]);
-  bg.addColorStop(1, zoneBg[z][1]);
-  ctx.fillStyle = bg;
+  const bgColors = ['#0d1b24','#1a0d24','#0d1a24','#1a1a0d','#1a0d0d'];
+  bgGrad.addColorStop(0, bgColors[z]);
+  bgGrad.addColorStop(1, bgColors[Math.min(z+1,4)]);
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Stars — fade by zone
-  const starVis = [1, 0.6, 0.2, 0, 0][z];
+  // Stars
   stars.forEach(s => {
     s.x -= s.speed * (paipo.slow ? 0.3 : 1);
     if (s.x < 0) s.x = W;
-    if (starVis > 0) {
-      ctx.save();
-      ctx.globalAlpha = starVis * (0.3 + s.r * 0.2);
-      ctx.fillStyle = '#e8dfc8';
-      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
+    ctx.fillStyle = `rgba(232,223,200,${0.3+s.r*0.2})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
   });
-
-  // Zone 0 — soft dawn glow on horizon
-  if (zone === 0) {
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    const hg = ctx.createLinearGradient(0, H*0.7, 0, H);
-    hg.addColorStop(0, '#ffaa44'); hg.addColorStop(1, '#ff660000');
-    ctx.fillStyle = hg;
-    ctx.fillRect(0, H*0.7, W, H*0.3);
-    ctx.restore();
-  }
-
-  // Zone 1 — speed lines suggesting rush hour traffic below
-  if (zone === 1) {
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.strokeStyle = '#ffcc44';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 6; i++) {
-      const lx = ((frame * 4 + i * 160) % (W + 200)) - 100;
-      const ly = H * 0.75 + i * 12;
-      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx - 80, ly); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // Zone 2 — slow dark cloud shapes
-  if (zone === 2) {
-    ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = '#223';
-    for (let i = 0; i < 4; i++) {
-      const cx = ((frame * 0.4 + i * 240) % (W + 300)) - 150;
-      ctx.beginPath(); ctx.ellipse(cx, 40 + i*28, 130, 22, 0, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // Zone 3 — fiery glow flickers + occasional lightning
-  if (zone === 3) {
-    ctx.save();
-    ctx.globalAlpha = 0.1 + Math.sin(frame * 0.15) * 0.05;
-    const fg = ctx.createLinearGradient(0, H*0.6, 0, H);
-    fg.addColorStop(0, '#ff3300'); fg.addColorStop(1, '#ff330000');
-    ctx.fillStyle = fg;
-    ctx.fillRect(0, H*0.6, W, H*0.4);
-    ctx.restore();
-    if (Math.random() < 0.006) {
-      ctx.save();
-      ctx.globalAlpha = 0.7;
-      ctx.strokeStyle = '#fff8cc';
-      ctx.lineWidth = 1.5;
-      const lx = 200 + Math.random() * (W - 300);
-      ctx.beginPath();
-      ctx.moveTo(lx, 0);
-      ctx.lineTo(lx + (Math.random()-0.5)*50, H*0.4);
-      ctx.lineTo(lx + (Math.random()-0.5)*70, H*0.65);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
 
   // Zone progress line
   const prog = Math.min(worldX / TOTAL_LEN, 1);
