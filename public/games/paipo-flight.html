@@ -107,7 +107,9 @@ document.addEventListener('keyup', e => {
   keys[e.code] = false;
   if (e.code === 'Space') paipo.slow = false;
 });
-// Touch — tap anywhere to flap
+// Click or tap anywhere to flap
+function doFlap() { if (state === 'playing') paipo.vy = -4.5; }
+canvas.addEventListener('mousedown', doFlap);
 canvas.addEventListener('touchstart', e => {
   if (state !== 'playing') return;
   paipo.vy = -4.5;
