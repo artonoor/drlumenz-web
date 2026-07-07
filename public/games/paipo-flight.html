@@ -86,6 +86,8 @@ let secretFound = false;
 let towerWarning = false;
 let towerWarningTimer = 0;
 let won = false;
+let victoryFrame = 0;
+let towerVictory = false;
 
 // Stars background
 for (let i = 0; i < 80; i++) {
@@ -98,7 +100,7 @@ function startGame() {
   state = 'playing';
   score = 0; lives = 3; frame = 0; worldX = 0; zone = 0;
   obstacles = []; particles = []; towerFired = false; towerShots = []; towerShotsFired = 0; nextPhraseIndex = 0; lastSpawnFrame = 0;
-  secretFound = false; towerWarning = false; won = false;
+  secretFound = false; towerWarning = false; won = false; victoryFrame = 0; towerVictory = false;
   paipo.y = H/2; paipo.vy = 0;
   keys = {}; touchY = null;
   document.getElementById('pauseBtn').style.display = 'block';
@@ -295,7 +297,8 @@ function drawTower(x) {
   ctx.textAlign = 'center';
   ctx.shadowColor = '#c9a84c';
   ctx.shadowBlur = 10;
-  ctx.fillText('TOWER OF FEAR', x + 40, tTop - 32);
+  ctx.fillStyle = towerVictory ? '#c9a84c' : '#c97a4c';
+  ctx.fillText(towerVictory ? 'TOWER OF SUCCESS' : 'TOWER OF FEAR', x + 40, tTop - 32);
   ctx.shadowBlur = 0;
 }
 
@@ -379,6 +382,79 @@ function togglePause() {
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') togglePause();
 });
+
+function runVictory() {
+  requestAnimationFrame(runVictory);
+  if (state !== 'victory') return;
+  victoryFrame++;
+
+  // Clear canvas
+  const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
+  bgGrad.addColorStop(0, '#0d0010'); bgGrad.addColorStop(1, '#1a0d0d');
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+  stars.forEach(s => {
+    ctx.fillStyle = 'rgba(232,223,200,0.3)';
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+  });
+
+  const towerX = W * 0.7;
+  const perchX = towerX + 40;
+  const perchY = H * 0.3 - 28; // top of tower
+
+  // Phase 1 (0-60): Paipo flies toward tower top
+  if (victoryFrame < 60) {
+    paipo.x += (perchX - paipo.x) * 0.08;
+    paipo.y += (perchY - paipo.y) * 0.08;
+    paipo.wingAngle += 0.25;
+    paipo.vy = 0;
+  } else {
+    // Phase 2: landed — snap to perch
+    paipo.x = perchX;
+    paipo.y = perchY;
+    paipo.wingAngle += 0.04;
+  }
+
+  // Tower transforms at frame 70
+  if (victoryFrame >= 70) towerVictory = true;
+  drawTower(towerX);
+
+  // Gold victory glow radiates from tower top
+  if (victoryFrame >= 60) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (victoryFrame - 60) / 30) * 0.4;
+    const glowR = ctx.createRadialGradient(perchX, perchY, 0, perchX, perchY, 120);
+    glowR.addColorStop(0, '#c9a84c'); glowR.addColorStop(1, '#c9a84c00');
+    ctx.fillStyle = glowR;
+    ctx.beginPath(); ctx.arc(perchX, perchY, 120, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw Paipo — wings fully raised on landing
+  const savedWingAngle = paipo.wingAngle;
+  if (victoryFrame >= 60) paipo.wingAngle = -Math.PI/2; // wings up
+  drawPaipo(paipo.x, paipo.y, false);
+  paipo.wingAngle = savedWingAngle;
+
+  // Victory text fades in
+  if (victoryFrame >= 80) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, (victoryFrame - 80) / 30);
+    ctx.fillStyle = '#c9a84c';
+    ctx.font = 'bold 28px Georgia';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = '#c9a84c';
+    ctx.shadowBlur = 20;
+    ctx.fillText('✦ Fear becomes your perch ✦', W/2, H * 0.15);
+    ctx.restore();
+  }
+
+  // After full animation — show win screen
+  if (victoryFrame >= 160) {
+    state = 'won';
+    showEndScreen(true);
+  }
+}
+requestAnimationFrame(runVictory);
 
 function loop(ts = 0) {
   if (state !== 'playing') return;
@@ -477,8 +553,8 @@ function loop(ts = 0) {
           if (towerShotsFired >= 6) towerFired = true;
         } else {
           // Secret — player slowing, tower stands down
-          secretFound = true; won = true; score += 500;
-          state = 'won'; updateUI(); showEndScreen(true); return;
+          secretFound = true; score += 500; updateUI();
+          state = 'victory'; victoryFrame = 0; towerVictory = false; return;
         }
       }
     }
