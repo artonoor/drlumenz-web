@@ -415,8 +415,8 @@ function loop(ts = 0) {
     spawnObstacle();
   }
 
-  // Cannonballs — start at 20s, fire every ~4s at random heights
-  if (frame > 1200 && frame % 240 === 0) {
+  // Cannonballs — start at 20s, fire every ~4s, stop when Tower zone begins
+  if (frame > 1200 && frame % 240 === 0 && !isTowerZone) {
     const y = 60 + Math.random() * (H - 120);
     towerShots.push({ x: W + 10, y, vx: -5 - Math.random() * 2, r: 8 });
   }
