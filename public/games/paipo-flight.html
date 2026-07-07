@@ -298,7 +298,7 @@ function drawTower(x) {
   ctx.shadowColor = '#c9a84c';
   ctx.shadowBlur = 10;
   ctx.fillStyle = towerVictory ? '#c9a84c' : '#c97a4c';
-  ctx.fillText(towerVictory ? 'TOWER OF SUCCESS' : 'TOWER OF FEAR', x + 40, tTop - 32);
+  ctx.fillText(towerVictory ? 'TOWER OF SUCCESS' : 'TOWER OF FEAR', x + 40, tTop - 58);
   ctx.shadowBlur = 0;
 }
 
@@ -351,8 +351,8 @@ function showEndScreen(win) {
   if (win) {
     msg.innerHTML = `
       <h2>✦ You Found the Secret ✦</h2>
-      <p>When Conceit fired its lethal shot —<br>you slowed down.<br>Every instinct said fly faster.<br>You chose differently.</p>
-      <p style="color:#c9a84c;margin-top:16px;font-style:italic;">"The wise ones don't speed through the tower.<br>They slow down. That's the only move that works."</p>
+      <p>When Fear fired its lethal shots, you continued to fly.<br>Fear said stop and return.<br>You chose differently.</p>
+      <p style="color:#c9a84c;margin-top:16px;font-style:italic;">"The wise persist in spite of the fear,<br>and keep flying to see the danger in the eyes."</p>
       <p class="hint" style="margin-top:8px;">— dr L</p>
       <button class="startBtn" style="margin-top:24px;background:#c9a84c;color:#0d1b24;border:none;padding:12px 32px;border-radius:50px;font-family:Georgia,serif;font-size:1rem;cursor:pointer;" onclick="startGame()">Fly Again →</button>`;
   } else {
