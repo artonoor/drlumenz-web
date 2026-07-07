@@ -527,6 +527,9 @@ function loop(ts = 0) {
   if (frame > 1200 && frame % 240 === 0 && !isTowerZone) {
     const y = 60 + Math.random() * (H - 120);
     towerShots.push({ x: W + 10, y, vx: -5 - Math.random() * 2, r: 8 });
+    // Extra shot targeting the top comfort zone
+    const topY = 40 + Math.random() * (H * 0.28);
+    towerShots.push({ x: W + 10, y: topY, vx: -4.5 - Math.random() * 2, r: 8 });
   }
   const towerX = W * 0.7;
 
