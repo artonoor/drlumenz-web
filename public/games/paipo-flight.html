@@ -80,7 +80,8 @@ const ZONES = ['The Open Sky', 'Storm of Noise', 'Valley of Doubt', 'The Fear Wi
 const ZONE_LEN = 4000;
 const TOTAL_LEN = ZONE_LEN * ZONES.length;
 let towerFired = false;
-let towerShot = null;
+let towerShots = [];
+let towerShotsFired = 0;
 let secretFound = false;
 let towerWarning = false;
 let towerWarningTimer = 0;
@@ -96,7 +97,7 @@ function startGame() {
   setTimeout(() => document.getElementById('msg').style.display='none', 500);
   state = 'playing';
   score = 0; lives = 3; frame = 0; worldX = 0; zone = 0;
-  obstacles = []; particles = []; towerFired = false; towerShot = null; nextPhraseIndex = 0; lastSpawnFrame = 0;
+  obstacles = []; particles = []; towerFired = false; towerShots = []; towerShotsFired = 0; nextPhraseIndex = 0; lastSpawnFrame = 0;
   secretFound = false; towerWarning = false; won = false;
   paipo.y = H/2; paipo.vy = 0;
   keys = {}; touchY = null;
@@ -413,41 +414,39 @@ function loop(ts = 0) {
         ctx.fillRect(0,0,W,H);
       }
     }
-    // Tower fires if NOT slowing
-    if (!towerFired && towerWarningTimer > 60) {
-      if (!paipo.slow) {
-        // Fire the lethal shot
-        towerShot = { x: towerX - 30, y: H/2, vx: -12, r: 8 };
-        towerFired = true;
-      } else {
-        // Secret found — player is slowing down
-        secretFound = true;
-        won = true;
-        score += 500;
-        state = 'won';
-        updateUI();
-        showEndScreen(true);
-        return;
+    // Tower fires 5 cannonballs at staggered intervals, spread vertically
+    const SHOT_HEIGHTS = [H*0.2, H*0.4, H*0.6, H*0.8, H*0.5];
+    const shotInterval = 40; // frames between each shot
+    if (towerWarningTimer > 60) {
+      const shotsDue = Math.min(5, Math.floor((towerWarningTimer - 60) / shotInterval));
+      if (shotsDue > towerShotsFired) {
+        if (!paipo.slow) {
+          const y = SHOT_HEIGHTS[towerShotsFired];
+          towerShots.push({ x: towerX - 30, y, vx: -9 - towerShotsFired * 0.8, r: 9 });
+          towerShotsFired++;
+          if (towerShotsFired >= 5) towerFired = true;
+        } else {
+          // Secret — player slowing, tower stands down
+          secretFound = true; won = true; score += 500;
+          state = 'won'; updateUI(); showEndScreen(true); return;
+        }
       }
     }
   }
 
-  // Tower shot
-  if (towerShot) {
-    towerShot.x += towerShot.vx;
-    // Draw shot
+  // Tower shots
+  towerShots = towerShots.filter(s => s.x > -20);
+  towerShots.forEach(s => {
+    s.x += s.vx;
     ctx.fillStyle = '#ff3333';
-    ctx.shadowColor = '#ff3333';
-    ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.arc(towerShot.x, towerShot.y, towerShot.r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowColor = '#ff6600';
+    ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
-    // Hit Paipo?
-    if (Math.abs(towerShot.x - paipo.x) < 28 && Math.abs(towerShot.y - paipo.y) < 24) {
-      loseLife();
-      return;
+    if (Math.abs(s.x - paipo.x) < 28 && Math.abs(s.y - paipo.y) < 24) {
+      loseLife(); return;
     }
-    if (towerShot.x < -20) towerShot = null;
-  }
+  });
 
   // Update obstacles
   obstacles = obstacles.filter(ob => ob.x > -600);
@@ -528,7 +527,7 @@ function loseLife() {
   updateUI();
   spawnParticle(paipo.x, paipo.y, '#ff3333');
   paipo.vy = -5;
-  towerFired = false; towerShot = null; towerWarningTimer = 0;
+  towerFired = false; towerShots = []; towerShotsFired = 0; towerWarningTimer = 0;
   if (lives <= 0) {
     state = 'dead';
     showEndScreen(false);
