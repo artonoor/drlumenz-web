@@ -132,16 +132,16 @@ canvas.addEventListener('touchstart', e => {
 canvas.addEventListener('touchend', () => {});
 let touchY = null;
 
-// Negative thought phrases — one per obstacle slot, in order
+// Negative thought phrases — 4 lines each, stacked as one tall obstacle
 const THOUGHT_PHRASES = [
-  { text: "You will never fly",      color: '#c97a4c', zone: 0 },
-  { text: "This is too hard",        color: '#6b35ff', zone: 1 },
-  { text: "You always give up",      color: '#4c8fcf', zone: 2 },
-  { text: "Nobody believes in you",  color: '#4c8fcf', zone: 2 },
-  { text: "It will not work",        color: '#cf4c6b', zone: 3 },
-  { text: "You will fail",           color: '#cf4c6b', zone: 3 },
-  { text: "You are not enough",      color: '#9b4ccf', zone: 4 },
-  { text: "Give up now",             color: '#9b4ccf', zone: 4 },
+  { lines: ["You will", "never", "truly", "fly"],              color: '#c97a4c', zone: 0 },
+  { lines: ["This is", "too hard", "for you", "give up"],      color: '#6b35ff', zone: 1 },
+  { lines: ["You always", "quit", "every", "time"],            color: '#4c8fcf', zone: 2 },
+  { lines: ["Nobody", "believes", "in", "you"],                color: '#4c8fcf', zone: 2 },
+  { lines: ["It will", "not work", "it never", "does"],        color: '#cf4c6b', zone: 3 },
+  { lines: ["You will", "fail", "like you", "always do"],      color: '#cf4c6b', zone: 3 },
+  { lines: ["You are", "not", "enough", "—ever"],              color: '#9b4ccf', zone: 4 },
+  { lines: ["Stop now", "while you", "still", "can"],          color: '#9b4ccf', zone: 4 },
 ];
 let nextPhraseIndex = 0;
 
@@ -149,11 +149,11 @@ function spawnObstacle() {
   if (nextPhraseIndex >= THOUGHT_PHRASES.length) return;
   const phrase = THOUGHT_PHRASES[nextPhraseIndex++];
   // Place text band in lower half so bird naturally rises above it
-  const bandH = 80;
+  const bandH = 220; // 4 lines × ~55px each
   const cy = H * 0.58 + (Math.random() - 0.5) * (H * 0.2);
   obstacles.push({
     x: W + 20,
-    text: phrase.text,
+    lines: phrase.lines,
     color: phrase.color,
     cy,
     bandH,
@@ -256,29 +256,30 @@ function drawTower(x) {
 
 function drawObstacle(ob) {
   ctx.save();
+  ctx.font = 'italic bold 48px Georgia';
+  ctx.textAlign = 'left';
 
-  // Measure text width for the band
-  ctx.font = 'italic bold 52px Georgia';
-  const tw = ctx.measureText(ob.text).width;
+  const lineH = 56;
   const bandTop = ob.cy - ob.bandH / 2;
 
-  // Full-width glowing band behind the text
+  // Glowing band
   const bandGrad = ctx.createLinearGradient(0, bandTop, 0, bandTop + ob.bandH);
   bandGrad.addColorStop(0,   ob.color + '00');
-  bandGrad.addColorStop(0.4, ob.color + '33');
-  bandGrad.addColorStop(0.6, ob.color + '33');
+  bandGrad.addColorStop(0.2, ob.color + '33');
+  bandGrad.addColorStop(0.8, ob.color + '33');
   bandGrad.addColorStop(1,   ob.color + '00');
   ctx.fillStyle = bandGrad;
-  ctx.fillRect(ob.x - tw * 0.1, bandTop, tw * 1.2, ob.bandH);
+  ctx.fillRect(ob.x - 20, bandTop, 480, ob.bandH);
 
-  // Big glowing text
-  ctx.textAlign = 'left';
+  // 4 stacked lines
   ctx.shadowColor = ob.color;
-  ctx.shadowBlur = 32;
+  ctx.shadowBlur = 28;
   ctx.fillStyle = ob.color;
-  ctx.fillText(ob.text, ob.x, ob.cy + 18);
+  ob.lines.forEach((line, i) => {
+    const indent = i % 2 === 1 ? 30 : 0; // slight zigzag
+    ctx.fillText(line, ob.x + indent, bandTop + 48 + i * lineH);
+  });
   ctx.shadowBlur = 0;
-
   ctx.restore();
 }
 
@@ -372,7 +373,7 @@ function loop(ts = 0) {
 
   // Paipo controls
   paipo.wingAngle += paipo.slow ? 0.08 : 0.18;
-  const gravity = frame < 1800 ? 0 : (paipo.slow ? 0.04 : 0.09);
+  const gravity = frame < 480 ? 0 : (paipo.slow ? 0.04 : 0.09);
   paipo.vy += gravity;
   paipo.vy = Math.max(-10, Math.min(7, paipo.vy));
   paipo.y += paipo.vy;
@@ -382,7 +383,7 @@ function loop(ts = 0) {
   if (paipo.y > H - 20) {
     paipo.y = H - 20;
     paipo.vy = -Math.abs(paipo.vy) * 0.4;
-    if (frame > 1800) loseLife();
+    if (frame > 480) loseLife();
   }
 
   // Free fly for first 30 seconds (~1800 frames at 60fps), then obstacles begin
@@ -392,7 +393,7 @@ function loop(ts = 0) {
   const totalAllowed = ZONE_COUNTS.slice(0, zone + 1).reduce((a, b) => a + b, 0);
   const noneOnScreen = obstacles.filter(o => !o.passed).length === 0;
   const minGap = 380; // frames between spawns
-  if (frame > 1800 && noneOnScreen && zonePassed < totalAllowed && (frame - lastSpawnFrame) > minGap && worldX < TOTAL_LEN - ZONE_LEN * 0.8) {
+  if (frame > 480 && noneOnScreen && zonePassed < totalAllowed && (frame - lastSpawnFrame) > minGap && worldX < TOTAL_LEN - ZONE_LEN * 0.8) {
     lastSpawnFrame = frame;
     spawnObstacle();
   }
@@ -493,7 +494,7 @@ function loop(ts = 0) {
   }
 
   // Free fly message
-  if (frame < 1800) {
+  if (frame < 480) {
     const alpha = frame < 120 ? frame/120 : (frame > 1600 ? (1800-frame)/200 : 1);
     ctx.globalAlpha = alpha * 0.7;
     ctx.fillStyle = '#c9a84c';
